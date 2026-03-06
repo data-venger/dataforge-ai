@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles, ArrowRight, Loader2, Database, Code, AlertCircle } from 'lucide-react';
+import { Send, Sparkles, Loader2, Database, Code, AlertCircle } from 'lucide-react';
 import { aiService } from '../services/aiService';
 import { runQuery, type QueryResult } from '../services/duckdb';
 
@@ -12,17 +12,20 @@ type Message = {
     error?: string;
 };
 
-export function ChatPage() {
+interface ChatInterfaceProps {
+    className?: string;
+}
+
+export function ChatInterface({ className = '' }: ChatInterfaceProps) {
     const [input, setInput] = useState('');
     const [messages, setMessages] = useState<Message[]>([]);
     const [isGenerating, setIsGenerating] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const suggestions = [
-        'Show me the top 10 rows from my dataset',
-        'What are the column types?',
-        'How many total records are there?',
-        'Group by department and show the count',
+        'Show top 10 rows',
+        'What columns are there?',
+        'Count total records',
     ];
 
     const scrollToBottom = () => {
@@ -49,7 +52,6 @@ export function ChatPage() {
             try {
                 sql = await aiService.generateSql(text);
 
-                // If the LLM returned our "No relevant tables" fallback
                 if (sql.startsWith('-- No relevant tables')) {
                     setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, text: sql } : m));
                     setIsGenerating(false);
@@ -58,7 +60,7 @@ export function ChatPage() {
 
                 setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, sql } : m));
             } catch (e: any) {
-                setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, error: `AI Engine Error: ${e.message}` } : m));
+                setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, error: `AI Error: ${e.message}` } : m));
                 setIsGenerating(false);
                 return;
             }
@@ -68,7 +70,7 @@ export function ChatPage() {
                 const result = await runQuery(sql);
                 setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, data: result } : m));
             } catch (e: any) {
-                setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, error: `DuckDB Execution Error: ${e.message}` } : m));
+                setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, error: `SQL Error: ${e.message}` } : m));
             }
 
         } finally {
@@ -77,28 +79,24 @@ export function ChatPage() {
     };
 
     return (
-        <div className="page-container chat-page">
-            <div className="chat-messages-area">
+        <div className={`chat-interface ${className}`}>
+            <div className="chat-messages-area compact">
                 {messages.length === 0 ? (
-                    <div className="chat-welcome">
-                        <div className="chat-welcome-icon">
-                            <Sparkles />
+                    <div className="chat-welcome compact">
+                        <div className="chat-welcome-icon compact">
+                            <Sparkles size={20} />
                         </div>
-                        <h2>What would you like to explore?</h2>
-                        <p>
-                            Ask questions about your data in plain English. I'll query, analyze,
-                            and visualize — all locally on your machine.
-                        </p>
+                        <h3>AI Data Assistant</h3>
+                        <p>Ask about your data in plain English.</p>
 
-                        <div className="chat-suggestions">
+                        <div className="chat-suggestions compact">
                             {suggestions.map((s, i) => (
                                 <button
                                     key={i}
-                                    className="suggestion-chip"
+                                    className="suggestion-chip compact"
                                     onClick={() => handleSend(s)}
                                     disabled={isGenerating}
                                 >
-                                    <ArrowRight className="chip-arrow" />
                                     <span>{s}</span>
                                 </button>
                             ))}
@@ -107,36 +105,30 @@ export function ChatPage() {
                 ) : (
                     <div className="messages-list">
                         {messages.map((msg) => (
-                            <div key={msg.id} className={`message-bubble ${msg.role}`}>
-                                <div className="message-avatar">
-                                    {msg.role === 'user' ? 'U' : <Sparkles size={16} />}
-                                </div>
+                            <div key={msg.id} className={`message-bubble ${msg.role} compact`}>
                                 <div className="message-content">
                                     {msg.text && <div className="message-text">{msg.text}</div>}
 
-                                    {/* SQL Block */}
                                     {msg.sql && (
-                                        <div className="message-sql">
+                                        <div className="message-sql compact">
                                             <div className="sql-header">
-                                                <Code size={14} /> Generated SQL
+                                                <Code size={12} /> SQL
                                             </div>
                                             <pre>{msg.sql}</pre>
                                         </div>
                                     )}
 
-                                    {/* Error Block */}
                                     {msg.error && (
-                                        <div className="message-error">
-                                            <AlertCircle size={14} />
+                                        <div className="message-error compact">
+                                            <AlertCircle size={12} />
                                             <span>{msg.error}</span>
                                         </div>
                                     )}
 
-                                    {/* Data Table Block */}
                                     {msg.data && msg.data.rows.length > 0 && (
-                                        <div className="message-data">
+                                        <div className="message-data compact">
                                             <div className="data-header">
-                                                <Database size={14} /> Results ({msg.data.rowCount} rows ⋅ {msg.data.duration.toFixed(0)}ms)
+                                                <Database size={12} /> {msg.data.rowCount} rows ⋅ {msg.data.duration.toFixed(0)}ms
                                             </div>
                                             <div className="data-grid-wrapper chat-data-grid">
                                                 <table className="data-grid">
@@ -148,7 +140,7 @@ export function ChatPage() {
                                                         </tr>
                                                     </thead>
                                                     <tbody>
-                                                        {msg.data.rows.slice(0, 100).map((row, i) => (
+                                                        {msg.data.rows.slice(0, 50).map((row, i) => (
                                                             <tr key={i}>
                                                                 {msg.data!.columns.map((col) => (
                                                                     <td key={col}>
@@ -163,17 +155,16 @@ export function ChatPage() {
                                                         ))}
                                                     </tbody>
                                                 </table>
-                                                {msg.data.rowCount > 100 && (
-                                                    <div className="data-truncated">Showing first 100 rows</div>
+                                                {msg.data.rowCount > 50 && (
+                                                    <div className="data-truncated">Showing first 50 rows</div>
                                                 )}
                                             </div>
                                         </div>
                                     )}
 
-                                    {/* Loading State */}
                                     {msg.role === 'assistant' && !msg.text && !msg.sql && !msg.error && isGenerating && (
-                                        <div className="message-loading">
-                                            <Loader2 className="spin" size={16} /> Generating SQL & executing...
+                                        <div className="message-loading compact">
+                                            <Loader2 className="spin" size={14} /> Thinking...
                                         </div>
                                     )}
                                 </div>
@@ -184,12 +175,12 @@ export function ChatPage() {
                 )}
             </div>
 
-            <div className="chat-input-area">
+            <div className="chat-input-area compact">
                 <div className="chat-input-container">
                     <input
                         type="text"
                         className="chat-input"
-                        placeholder="Ask anything about your data..."
+                        placeholder="Type a message..."
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={(e) => {
@@ -202,12 +193,9 @@ export function ChatPage() {
                         disabled={!input.trim() || isGenerating}
                         onClick={() => handleSend(input)}
                     >
-                        {isGenerating ? <Loader2 className="spin" size={18} /> : <Send size={18} />}
+                        {isGenerating ? <Loader2 className="spin" size={16} /> : <Send size={16} />}
                     </button>
                 </div>
-                <span className="chat-input-hint">
-                    100% local — powered by Ollama + DuckDB
-                </span>
             </div>
         </div>
     );

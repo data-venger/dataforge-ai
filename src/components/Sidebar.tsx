@@ -1,5 +1,4 @@
 import {
-    MessageSquare,
     Database,
     BarChart3,
     Settings,
@@ -12,10 +11,9 @@ interface SidebarProps {
     onNavigate: (page: Page) => void;
 }
 
-const navItems: { id: Page; icon: typeof MessageSquare; label: string }[] = [
-    { id: 'chat', icon: MessageSquare, label: 'Chat' },
-    { id: 'data-explorer', icon: Database, label: 'Data Explorer' },
-    { id: 'viz-canvas', icon: BarChart3, label: 'Visualizations' },
+const navItems: { id: Page; icon: typeof Database; label: string }[] = [
+    { id: 'data-explorer', icon: Database, label: 'Workspace' },
+    { id: 'viz-canvas', icon: BarChart3, label: 'Analytics' },
 ];
 
 export function Sidebar({ activePage, onNavigate }: SidebarProps) {
