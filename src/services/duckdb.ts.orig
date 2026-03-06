@@ -91,38 +91,12 @@ export async function importJSON(
 ): Promise<TableInfo> {
     const c = await getConnection();
 
-    // Pre-process Data: Sometimes "JSON" files are actually dumped Python dictionaries
-    // using single quotes (') instead of double quotes ("), and Python booleans (True/False).
-    // DuckDB parser requires strict JSON formats.
-    let sanitizedContent = jsonContent
-        .replace(/^\s*\/\/.*$/gm, '') // Strip JS-style comments just in case
-        .replace(/'/g, '"')           // Replace single quotes with double quotes
-        .replace(/\bTrue\b/g, 'true') // Fix Python booleans
-        .replace(/\bFalse\b/g, 'false')// Fix Python booleans
-        .replace(/\bNone\b/g, 'null'); // Fix Python None
+    await db!.registerFileText(`${tableName}.json`, jsonContent);
 
-    await db!.registerFileText(`${tableName}.json`, sanitizedContent);
-
-    try {
-        await c.query(`
-        CREATE OR REPLACE TABLE "${tableName}" AS
-        SELECT * FROM read_json_auto('${tableName}.json', ignore_errors=true)
-        `);
-    } catch (error) {
-        console.log('[DuckDB] Standard JSON auto-detect failed. Retrying with format array...');
-        try {
-            await c.query(`
-            CREATE OR REPLACE TABLE "${tableName}" AS
-            SELECT * FROM read_json_auto('${tableName}.json', format='array', ignore_errors=true)
-            `);
-        } catch (e2) {
-            console.log('[DuckDB] Array format failed. Retrying with newline_delimited...');
-            await c.query(`
-            CREATE OR REPLACE TABLE "${tableName}" AS
-            SELECT * FROM read_json_auto('${tableName}.json', format='newline_delimited', ignore_errors=true)
-            `);
-        }
-    }
+    await c.query(`
+    CREATE OR REPLACE TABLE "${tableName}" AS
+    SELECT * FROM read_json_auto('${tableName}.json')
+  `);
 
     return await getTableInfo(tableName);
 }

@@ -4,6 +4,7 @@ import {
     importParquet,
     type TableInfo,
 } from './duckdb';
+import { aiService } from './aiService';
 
 export interface ImportResult {
     success: boolean;
@@ -82,6 +83,19 @@ export async function importSingleFile(
         }
 
         tableInfo.sourcePath = filePath;
+
+        // Auto-index the schema into the AI Vector Store
+        try {
+            const schemaText = tableInfo.columns
+                .map((c) => `${c.name} (${c.type})`)
+                .join(', ');
+            const fullSchema = `CREATE TABLE ${tableName} (\n  ${schemaText}\n);`;
+            await aiService.indexSchema(tableName, fullSchema);
+            console.log(`[AI Engine] Indexed schema for ${tableName}`);
+        } catch (e) {
+            console.error(`[AI Engine] Failed to index schema for ${tableName}:`, e);
+            // We do not fail the import if AI indexing fails
+        }
 
         return { success: true, table: tableInfo };
     } catch (error: unknown) {
