@@ -47,10 +47,11 @@ export function ChatInterface({ className = '' }: ChatInterfaceProps) {
         setIsGenerating(true);
 
         try {
-            // Step 1: Python NL-to-SQL
-            let sql = '';
-            try {
-                sql = await aiService.generateSql(text);
+            // Orchestrated Query (SQL, Semantic, or Chat)
+            const result = await aiService.query(text);
+
+            if (result.type === 'sql') {
+                const sql = result.sql;
 
                 if (sql.startsWith('-- No relevant tables')) {
                     setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, text: sql } : m));
@@ -59,20 +60,21 @@ export function ChatInterface({ className = '' }: ChatInterfaceProps) {
                 }
 
                 setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, sql } : m));
-            } catch (e: any) {
-                setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, error: `AI Error: ${e.message}` } : m));
-                setIsGenerating(false);
-                return;
+
+                // Execute SQL in DuckDB
+                try {
+                    const data = await runQuery(sql);
+                    setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, data } : m));
+                } catch (e: any) {
+                    setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, error: `SQL Error: ${e.message}` } : m));
+                }
+            } else {
+                // General Chat or Semantic Result
+                setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, text: result.text } : m));
             }
 
-            // Step 2: Local DuckDB Execution
-            try {
-                const result = await runQuery(sql);
-                setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, data: result } : m));
-            } catch (e: any) {
-                setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, error: `SQL Error: ${e.message}` } : m));
-            }
-
+        } catch (e: any) {
+            setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, error: `AI Error: ${e.message}` } : m));
         } finally {
             setIsGenerating(false);
         }
