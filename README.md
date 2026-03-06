@@ -1,0 +1,54 @@
+# DataForge.ai ⚡️
+
+A local-first AI data workspace. All data stays on your machine. No cloud APIs, no data leaks.
+
+![DataForge Interface](/Users/joker/.gemini/antigravity/brain/3b9ae8f4-0229-45c5-8a5f-cf74250f4763/data_explorer_verified_1772789436774.png)
+
+## Architecture
+
+DataForge is a hybrid application combining web technologies, embedded databases, and local machine learning:
+
+1. **Frontend (Electron + React + Vite):** A responsive, premium dark-themed UI.
+2. **Data Layer (DuckDB-WASM):** Local, in-memory analytical database running directly in the renderer process. Fast CSV, JSON, and Parquet imports.
+3. **AI Inference Layer (Python + FastAPI):** A local sidecar managing LangChain orchestration, ChromaDB vector storage, and Ollama integration.
+
+## Prerequisites
+
+- **Node.js** v18+
+- **Python** 3.10+
+- **Ollama** (Running locally on `http://localhost:11434`)
+  - Pull the model: `ollama run llama3.2`
+
+## Setup Instructions
+
+### 1. Python Environment
+
+The Python backend powers the AI inference engine.
+
+```bash
+cd python-engine
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+### 2. Electron Application
+
+The Electron app automatically manages the lifecycle of the Python sidecar.
+
+```bash
+# Return to the project root
+cd ..
+
+# Install dependencies
+npm install
+
+# Start the application
+npm run dev
+```
+
+## Features Complete Unlocked
+
+- **Phase 1:** Electron app shell, frameless window, React navigation routing.
+- **Phase 2:** DuckDB integration, File Import Pipeline (CSV/Parquet), Data Explorer UI.
+- **Phase 3:** Python sidecar (FastAPI), Ollama LLM connection, ChromaDB vector indexing.
