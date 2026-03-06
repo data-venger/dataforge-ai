@@ -4,10 +4,10 @@ import { TopBar } from './components/TopBar';
 import { MainPanel } from './components/MainPanel';
 import { StatusBar } from './components/StatusBar';
 
-export type Page = 'chat' | 'data-explorer' | 'viz-canvas' | 'settings';
+export type Page = 'data-explorer' | 'viz-canvas' | 'settings';
 
 function App() {
-    const [activePage, setActivePage] = useState<Page>('chat');
+    const [activePage, setActivePage] = useState<Page>('data-explorer');
 
     return (
         <div className="app-layout">

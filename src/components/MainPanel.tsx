@@ -1,5 +1,4 @@
 import type { Page } from '../App';
-import { ChatPage } from '../pages/ChatPage';
 import { DataExplorer } from '../pages/DataExplorer';
 import { VizCanvas } from '../pages/VizCanvas';
 import { SettingsPage } from '../pages/Settings';
@@ -9,20 +8,27 @@ interface MainPanelProps {
 }
 
 const pages: Record<Page, React.ComponentType> = {
-    'chat': ChatPage,
     'data-explorer': DataExplorer,
     'viz-canvas': VizCanvas,
     'settings': SettingsPage,
 };
 
 export function MainPanel({ activePage }: MainPanelProps) {
-    const PageComponent = pages[activePage];
-
     return (
         <main className="main-panel">
-            <div className="page-container animate-in" key={activePage}>
-                <PageComponent />
-            </div>
+            {(Object.entries(pages) as [Page, React.ComponentType][]).map(([pageKey, Component]) => (
+                <div
+                    key={pageKey}
+                    className={`page-container ${activePage === pageKey ? 'animate-in' : ''}`}
+                    style={{
+                        display: activePage === pageKey ? 'flex' : 'none',
+                        height: '100%',
+                        flexDirection: 'column'
+                    }}
+                >
+                    <Component />
+                </div>
+            ))}
         </main>
     );
 }
