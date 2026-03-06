@@ -83,10 +83,11 @@ class AIService {
     }
 
     async generateSql(question: string): Promise<string> {
+        // Legacy wrapper: calling the dedicated SQL route
         const res = await fetch(`${API_BASE_URL}/query/sql`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ question }),
+            body: JSON.stringify({ prompt: question }),
         });
 
         if (!res.ok) {
@@ -96,6 +97,20 @@ class AIService {
 
         const data = await res.json();
         return data.sql;
+    }
+
+    async query(prompt: string): Promise<any> {
+        const res = await fetch(`${API_BASE_URL}/query`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt }),
+        });
+
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.detail || 'Query request failed');
+        }
+        return await res.json();
     }
 }
 

@@ -1,7 +1,8 @@
-import os
 import re
 from typing import List
-from langchain_core.prompts import PromptTemplate
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.runnables import RunnablePassthrough
 from engine.ollama_client import OllamaClient
 from engine.vector_store import VectorStore
 
@@ -11,7 +12,7 @@ class SqlChain:
         self.vector_store = vector_store
         
         # DuckDB-specific SQL prompt
-        self.prompt_template = """You are a DuckDB SQL expert. Your job is to convert the user's natural language request into a valid DuckDB SQL query.
+        self.template = """You are a DuckDB SQL expert. Your job is to convert the user's natural language request into a valid DuckDB SQL query.
 
 Below are the schemas of the available tables in the user's database:
 {schemas}
@@ -30,12 +31,12 @@ Below are the schemas of the available tables in the user's database:
 User Question: {question}
 
 SQL Query:"""
+        
+        self.prompt = ChatPromptTemplate.from_template(self.template)
 
     async def generate_sql(self, question: str) -> str:
-        # 1. Embed the user's question to retrieve relevant table schemas
+        # 1. Retrieve relevant schemas
         query_embedding = await self.ollama.get_embedding(question)
-        
-        # 2. Search ChromaDB for relevant schemas
         results = self.vector_store.search_sql_schemas(query_embedding, n_results=5)
         
         schemas = []
@@ -45,19 +46,20 @@ SQL Query:"""
         if not schemas:
             return "-- No relevant tables found in the workspace."
 
-        # 3. Construct the prompt
         schemas_text = "\n\n".join(schemas)
-        prompt = self.prompt_template.format(schemas=schemas_text, question=question)
-
-        # 4. Generate the SQL using Ollama
-        response = await self.ollama.generate(prompt=prompt)
         
-        # 5. Clean up the response (in case the LLM ignores instructions and adds markdown)
+        # 2. Construct the prompt
+        prompt_val = self.prompt.format(schemas=schemas_text, question=question)
+
+        # 3. Generate using Ollama (Manual LCEL style for now since OllamaClient is custom)
+        response = await self.ollama.generate(prompt=prompt_val)
+        
         return self._clean_sql(response)
 
     def _clean_sql(self, sql: str) -> str:
         sql = sql.strip()
         # Remove markdown code blocks if present
-        sql = re.sub(r"^```(?:sql)?\n", "", sql)
-        sql = re.sub(r"\n```$", "", sql)
+        sql = re.sub(r"^```(?:sql)?\n", "", sql, flags=re.IGNORECASE)
+        sql = re.sub(r"\n```$", "", sql, flags=re.IGNORECASE)
+        # Sometimes models add a trailing semicolon if they're too helpful, but DuckDB is fine with it
         return sql.strip()

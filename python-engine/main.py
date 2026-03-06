@@ -7,6 +7,7 @@ from typing import Optional, List, Dict, Any
 from engine.ollama_client import OllamaClient
 from engine.vector_store import VectorStore
 from engine.sql_chain import SqlChain
+from engine.orchestrator import Orchestrator
 
 app = FastAPI(title="DataForge.ai - Inference Engine")
 
@@ -23,6 +24,7 @@ app.add_middleware(
 ollama = OllamaClient(model="llama3.2")
 vector_store = VectorStore()
 sql_chain = SqlChain(ollama, vector_store)
+orchestrator = Orchestrator(ollama, vector_store)
 
 # --- Models ---
 class ChatRequest(BaseModel):
@@ -38,8 +40,8 @@ class IndexSchemaRequest(BaseModel):
     table_name: str
     schema_text: str
 
-class SqlQueryRequest(BaseModel):
-    question: str
+class QueryRequest(BaseModel):
+    prompt: str
 
 # --- Routes ---
 @app.get("/health")
@@ -57,8 +59,19 @@ async def get_models():
     models = await ollama.list_models()
     return {"models": models}
 
+@app.post("/query")
+async def query(req: QueryRequest):
+    """Unified entry point for AI queries (SQL, Semantic, Chat)"""
+    try:
+        result = await orchestrator.ask(req.prompt)
+        return result
+    except Exception as e:
+        print(f"Error in /query: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/chat")
 async def chat(req: ChatRequest):
+    """Legacy Endpoint: Use /query instead"""
     if req.model:
         ollama.model = req.model
     try:
@@ -88,10 +101,10 @@ async def index_schema(req: IndexSchemaRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/query/sql")
-async def generate_sql(req: SqlQueryRequest):
-    """Generate a DuckDB SQL query from natural language"""
+async def generate_sql(req: QueryRequest):
+    """Legacy Endpoint: Use /query instead"""
     try:
-        sql = await sql_chain.generate_sql(req.question)
+        sql = await sql_chain.generate_sql(req.prompt)
         return {"sql": sql}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
