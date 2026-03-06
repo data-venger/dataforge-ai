@@ -2,8 +2,6 @@
 
 A local-first AI data workspace. All data stays on your machine. No cloud APIs, no data leaks.
 
-![DataForge Interface](/Users/joker/.gemini/antigravity/brain/3b9ae8f4-0229-45c5-8a5f-cf74250f4763/data_explorer_verified_1772789436774.png)
-
 ## Architecture
 
 DataForge is a hybrid application combining web technologies, embedded databases, and local machine learning:

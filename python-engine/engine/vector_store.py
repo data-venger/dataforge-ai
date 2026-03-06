@@ -37,6 +37,16 @@ class VectorStore:
         )
         return results
 
+    def search_sql_schemas(self, query_embedding: List[float], n_results: int = 5):
+        try:
+            results = self.sql_collection.query(
+                query_embeddings=[query_embedding],
+                n_results=n_results
+            )
+            return results
+        except Exception:
+            return None
+
     def get_stats(self) -> Dict[str, Any]:
         return {
             "documents_count": self.doc_collection.count(),

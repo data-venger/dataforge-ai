@@ -81,6 +81,22 @@ class AIService {
 
         return res.ok;
     }
+
+    async generateSql(question: string): Promise<string> {
+        const res = await fetch(`${API_BASE_URL}/query/sql`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ question }),
+        });
+
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.detail || 'Failed to generate SQL');
+        }
+
+        const data = await res.json();
+        return data.sql;
+    }
 }
 
 export const aiService = new AIService();
