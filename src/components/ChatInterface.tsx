@@ -1,7 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles, Loader2, Database, Code, AlertCircle } from 'lucide-react';
+import { Send, Sparkles, Loader2, Database, Code, AlertCircle, BarChart2, Table, Download } from 'lucide-react';
 import { aiService } from '../services/aiService';
 import { runQuery, type QueryResult } from '../services/duckdb';
+import { SmartChart } from './SmartChart';
+import { detectChartConfig, type ChartConfig } from '../utils/chartDetector';
+import { exportToCSV } from '../utils/exportUtils';
 
 type Message = {
     id: string;
@@ -9,6 +12,8 @@ type Message = {
     text?: string;
     sql?: string;
     data?: QueryResult;
+    chartConfig?: ChartConfig | null;
+    activeView?: 'table' | 'chart';
     error?: string;
 };
 
@@ -79,7 +84,14 @@ export function ChatInterface({ className = '', activeContext = null }: ChatInte
                 // Execute SQL in DuckDB
                 try {
                     const data = await runQuery(sql);
-                    setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, data } : m));
+                    const chartConfig = data && data.rows ? detectChartConfig(data.rows) : null;
+
+                    setMessages(prev => prev.map(m => m.id === aiMsgId ? {
+                        ...m,
+                        data,
+                        chartConfig,
+                        activeView: chartConfig ? 'chart' : 'table' // Default to chart if available
+                    } : m));
 
                     // Generate AI Insight
                     if (data && data.rows && data.rows.length > 0) {
@@ -156,38 +168,73 @@ export function ChatInterface({ className = '', activeContext = null }: ChatInte
 
                                     {msg.data && msg.data.rows.length > 0 && (
                                         <div className="message-data compact">
-                                            <div className="data-header">
-                                                <Database size={12} /> {msg.data.rowCount} rows ⋅ {msg.data.duration.toFixed(0)}ms
+                                            <div className="data-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                                    <Database size={12} /> {msg.data.rowCount} rows ⋅ {msg.data.duration.toFixed(0)}ms
+
+                                                    {msg.chartConfig && (
+                                                        <div className="data-view-tabs" style={{ display: 'flex', gap: '4px', marginLeft: '12px', background: 'var(--bg-base)', padding: '2px', borderRadius: '4px' }}>
+                                                            <button
+                                                                className={`view-tab ${msg.activeView === 'table' ? 'active' : ''}`}
+                                                                onClick={() => setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, activeView: 'table' } : m))}
+                                                                style={{ background: msg.activeView === 'table' ? 'var(--bg-surface)' : 'transparent', border: 'none', padding: '2px 6px', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--text-primary)' }}
+                                                            >
+                                                                <Table size={12} /> Table
+                                                            </button>
+                                                            <button
+                                                                className={`view-tab ${msg.activeView === 'chart' ? 'active' : ''}`}
+                                                                onClick={() => setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, activeView: 'chart' } : m))}
+                                                                style={{ background: msg.activeView === 'chart' ? 'var(--bg-surface)' : 'transparent', border: 'none', padding: '2px 6px', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--text-primary)' }}
+                                                            >
+                                                                <BarChart2 size={12} /> Chart
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                <button
+                                                    className="export-btn"
+                                                    onClick={() => exportToCSV(msg.data!.rows, 'dataforge_export')}
+                                                    style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'transparent', border: '1px solid var(--border-subtle)', padding: '2px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', color: 'var(--text-primary)' }}
+                                                    title="Export to CSV"
+                                                >
+                                                    <Download size={12} /> Export CSV
+                                                </button>
                                             </div>
-                                            <div className="data-grid-wrapper chat-data-grid">
-                                                <table className="data-grid">
-                                                    <thead>
-                                                        <tr>
-                                                            {msg.data.columns.map((col) => (
-                                                                <th key={col}>{col}</th>
-                                                            ))}
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {msg.data.rows.slice(0, 50).map((row, i) => (
-                                                            <tr key={i}>
-                                                                {msg.data!.columns.map((col) => (
-                                                                    <td key={col}>
-                                                                        {row[col] === null ? (
-                                                                            <span className="null-value">NULL</span>
-                                                                        ) : (
-                                                                            String(row[col])
-                                                                        )}
-                                                                    </td>
+
+                                            {msg.activeView === 'chart' && msg.chartConfig ? (
+                                                <SmartChart data={msg.data.rows} config={msg.chartConfig} />
+                                            ) : (
+                                                <div className="data-grid-wrapper chat-data-grid">
+                                                    <table className="data-grid">
+                                                        <thead>
+                                                            <tr>
+                                                                {msg.data.columns.map((col) => (
+                                                                    <th key={col}>{col}</th>
                                                                 ))}
                                                             </tr>
-                                                        ))}
-                                                    </tbody>
-                                                </table>
-                                                {msg.data.rowCount > 50 && (
-                                                    <div className="data-truncated">Showing first 50 rows</div>
-                                                )}
-                                            </div>
+                                                        </thead>
+                                                        <tbody>
+                                                            {msg.data.rows.slice(0, 50).map((row, i) => (
+                                                                <tr key={i}>
+                                                                    {msg.data!.columns.map((col) => (
+                                                                        <td key={col}>
+                                                                            {row[col] === null ? (
+                                                                                <span className="null-value">NULL</span>
+                                                                            ) : (
+                                                                                String(row[col])
+                                                                            )}
+                                                                        </td>
+                                                                    ))}
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                    {msg.data.rowCount > 50 && (
+                                                        <div className="data-truncated">Showing first 50 rows</div>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
                                     )}
 
