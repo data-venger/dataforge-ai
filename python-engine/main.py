@@ -71,6 +71,7 @@ async def query(req: QueryRequest):
     """Unified entry point for AI queries (SQL, Semantic, Chat)"""
     try:
         result = await orchestrator.ask(req.prompt, active_document=req.active_document)
+        print(f"--- AI QUERY RESULT ---\n{result}\n-----------------------")
         return result
     except Exception as e:
         print(f"Error in /query: {str(e)}")

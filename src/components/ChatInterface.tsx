@@ -105,7 +105,52 @@ export function ChatInterface({ className = '', activeContext = null }: ChatInte
                         }
                     }
                 } catch (e: any) {
-                    setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, error: `SQL Error: ${e.message}` } : m));
+                    // Start of self-correction loop
+                    try {
+                        console.log("SQL Error caught, attempting self-correction...", e.message);
+                        setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, error: `Attempting to fix SQL error...` } : m));
+
+                        const fixPrompt = `The query I just ran failed with this error: ${e.message}\n\nPlease rewrite this DuckDB SQL query to fix the error:\n${sql}\n\nONLY return the raw SQL string. Do not use JOINs to any tables not explicitly in the schema provided to you.`;
+
+                        const fixedResult = await aiService.query(fixPrompt, activeContext);
+
+                        if (fixedResult.type !== 'sql' || !fixedResult.sql) {
+                            throw new Error("AI returned a non-SQL response instead of fixing the query.");
+                        }
+
+                        const fixedSql = fixedResult.sql;
+
+                        // Update UI to show the new SQL being tried
+                        setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, sql: fixedSql, error: undefined } : m));
+
+                        // Try executing the fixed SQL
+                        const fixedData = await runQuery(fixedSql);
+                        const fixedChartConfig = fixedData && fixedData.rows ? detectChartConfig(fixedData.rows) : null;
+
+                        setMessages(prev => prev.map(m => m.id === aiMsgId ? {
+                            ...m,
+                            data: fixedData,
+                            chartConfig: fixedChartConfig,
+                            activeView: fixedChartConfig ? 'chart' : 'table',
+                            error: undefined // Clear error since we succeeded!
+                        } : m));
+
+                        // Generate AI Insight for fixed data
+                        if (fixedData && fixedData.rows && fixedData.rows.length > 0) {
+                            try {
+                                const sample = fixedData.rows.slice(0, 5);
+                                const prompt = `The user asked: "${text}". I executed a SQL query and got these results (first 5 rows max): ${JSON.stringify(sample)}. Please provide a very brief, friendly 1-2 sentence summary or insight about this data to help the user understand it. Do not mention that you used SQL or a query, just talk about the data directly.`;
+                                const insightText = await aiService.chat(prompt);
+                                setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, text: insightText } : m));
+                            } catch (insightErr) {
+                                console.error('Insight generation failed on retry:', insightErr);
+                            }
+                        }
+
+                    } catch (retryError: any) {
+                        // If the fix ALSO fails, show the original error (or the new one)
+                        setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, error: `SQL Error (Auto-Fix Failed): ${retryError.message || e.message}` } : m));
+                    }
                 }
             } else {
                 // General Chat or Semantic Result
