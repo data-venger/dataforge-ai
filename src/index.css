@@ -1300,10 +1300,22 @@ body {
   height: 100%;
 }
 
-.workspace-chat-sidebar {
-  width: 380px;
+.sidebar-resizer {
+  width: 4px;
+  cursor: col-resize;
+  background-color: var(--border-subtle);
+  transition: background-color 0.2s ease;
+  z-index: 10;
   flex-shrink: 0;
-  border-left: 1px solid var(--border-subtle);
+}
+
+.sidebar-resizer:hover,
+.sidebar-resizer:active {
+  background-color: var(--accent-primary);
+}
+
+.workspace-chat-sidebar {
+  flex-shrink: 0;
   background: var(--bg-surface);
   display: flex;
   flex-direction: column;

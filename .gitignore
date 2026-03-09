@@ -39,3 +39,7 @@ python-engine/venv/
 __pycache__/
 *.py[cod]
 *.class
+*.orig
+
+# Local data
+python-engine/chroma_data/

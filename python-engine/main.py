@@ -1,5 +1,5 @@
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
@@ -8,6 +8,7 @@ from engine.ollama_client import OllamaClient
 from engine.vector_store import VectorStore
 from engine.sql_chain import SqlChain
 from engine.orchestrator import Orchestrator
+from engine.document_processor import DocumentProcessor
 
 app = FastAPI(title="DataForge.ai - Inference Engine")
 
@@ -25,6 +26,7 @@ ollama = OllamaClient(model="llama3.2")
 vector_store = VectorStore()
 sql_chain = SqlChain(ollama, vector_store)
 orchestrator = Orchestrator(ollama, vector_store)
+doc_processor = DocumentProcessor(ollama, vector_store)
 
 # --- Models ---
 class ChatRequest(BaseModel):
@@ -42,6 +44,11 @@ class IndexSchemaRequest(BaseModel):
 
 class QueryRequest(BaseModel):
     prompt: str
+    active_document: Optional[str] = None
+
+class IndexDocumentRequest(BaseModel):
+    source: str
+    content: str
 
 # --- Routes ---
 @app.get("/health")
@@ -63,7 +70,7 @@ async def get_models():
 async def query(req: QueryRequest):
     """Unified entry point for AI queries (SQL, Semantic, Chat)"""
     try:
-        result = await orchestrator.ask(req.prompt)
+        result = await orchestrator.ask(req.prompt, active_document=req.active_document)
         return result
     except Exception as e:
         print(f"Error in /query: {str(e)}")
@@ -97,6 +104,39 @@ async def index_schema(req: IndexSchemaRequest):
         embedding = await ollama.get_embedding(req.schema_text)
         vector_store.add_sql_schema(req.table_name, req.schema_text, embedding)
         return {"status": "success", "table": req.table_name}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/index/document")
+async def index_document(req: IndexDocumentRequest):
+    """Index a text document into the Vector RAG engine"""
+    try:
+        result = await doc_processor.process_text(req.source, req.content)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/process/file")
+async def process_file(file: UploadFile = File(...)):
+    """Process and index an uploaded file (PDF, DOCX, TXT, MD)"""
+    try:
+        file_bytes = await file.read()
+        filename = file.filename or "unknown"
+        ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+
+        if ext in ('txt', 'md'):
+            content = file_bytes.decode('utf-8', errors='ignore')
+            result = await doc_processor.process_text(filename, content)
+        elif ext == 'pdf':
+            result = await doc_processor.process_pdf(filename, file_bytes)
+        elif ext == 'docx':
+            result = await doc_processor.process_docx(filename, file_bytes)
+        else:
+            raise HTTPException(status_code=400, detail=f"Unsupported file type: .{ext}")
+
+        return result
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

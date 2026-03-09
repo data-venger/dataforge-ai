@@ -66,10 +66,9 @@ ipcMain.handle('file:openDialog', async () => {
     const result = await dialog.showOpenDialog(mainWindow!, {
         properties: ['openFile', 'multiSelections'],
         filters: [
-            { name: 'Data Files', extensions: ['csv', 'json', 'parquet', 'tsv'] },
-            { name: 'CSV', extensions: ['csv', 'tsv'] },
-            { name: 'JSON', extensions: ['json'] },
-            { name: 'Parquet', extensions: ['parquet'] },
+            { name: 'All Supported', extensions: ['csv', 'tsv', 'json', 'jsonl', 'parquet', 'xlsx', 'xls', 'txt', 'md', 'pdf', 'docx'] },
+            { name: 'Structured Data', extensions: ['csv', 'tsv', 'json', 'jsonl', 'parquet', 'xlsx', 'xls'] },
+            { name: 'Documents', extensions: ['txt', 'md', 'pdf', 'docx'] },
             { name: 'All Files', extensions: ['*'] },
         ],
     });

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
     Database,
     Upload,
@@ -38,6 +38,40 @@ export function DataExplorer() {
     const [tables, setTables] = useState<TableInfo[]>([]);
     const [selectedTable, setSelectedTable] = useState<string | null>(null);
     const [preview, setPreview] = useState<QueryResult | null>(null);
+
+    // Resizing logic for Chat Sidebar
+    const [sidebarWidth, setSidebarWidth] = useState(380);
+    const isResizing = useRef(false);
+
+    const startResizing = useCallback(() => {
+        isResizing.current = true;
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+    }, []);
+
+    const stopResizing = useCallback(() => {
+        isResizing.current = false;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+    }, []);
+
+    const resize = useCallback((e: MouseEvent) => {
+        if (isResizing.current) {
+            const newWidth = window.innerWidth - e.clientX;
+            if (newWidth >= 250 && newWidth <= Math.max(800, window.innerWidth * 0.6)) {
+                setSidebarWidth(newWidth);
+            }
+        }
+    }, []);
+
+    useEffect(() => {
+        window.addEventListener('mousemove', resize);
+        window.addEventListener('mouseup', stopResizing);
+        return () => {
+            window.removeEventListener('mousemove', resize);
+            window.removeEventListener('mouseup', stopResizing);
+        };
+    }, [resize, stopResizing]);
     const [loadingState, setLoadingState] = useState<LoadingState>('idle');
     const [error, setError] = useState<string | null>(null);
     const [dbReady, setDbReady] = useState(false);
@@ -60,6 +94,19 @@ export function DataExplorer() {
     // Load preview when table is selected
     useEffect(() => {
         if (!selectedTable || !dbReady) return;
+
+        // Vector RAG documents are not in DuckDB — show info instead
+        if (selectedTable.startsWith('📄')) {
+            setPreview({
+                columns: ['Info'],
+                columnTypes: ['VARCHAR'],
+                rows: [{ Info: '✅ This document is indexed in the Vector RAG engine. Ask questions about it in the chat!' }],
+                rowCount: 1,
+                duration: 0,
+            });
+            setLoadingState('idle');
+            return;
+        }
 
         setLoadingState('loading');
         getTablePreview(selectedTable, 100)
@@ -111,6 +158,7 @@ export function DataExplorer() {
     // Refresh table info
     const handleRefresh = useCallback(async () => {
         if (!selectedTable || !dbReady) return;
+        if (selectedTable.startsWith('📄')) return; // Vector RAG docs don't live in DuckDB
         setLoadingState('loading');
         try {
             const info = await getTableInfo(selectedTable);
@@ -366,8 +414,13 @@ export function DataExplorer() {
                 </div>
             </div>
 
-            <aside className="workspace-chat-sidebar">
-                <ChatInterface className="compact" />
+            <div
+                className="sidebar-resizer"
+                onMouseDown={startResizing}
+            />
+
+            <aside className="workspace-chat-sidebar" style={{ width: sidebarWidth, flexBasis: sidebarWidth }}>
+                <ChatInterface className="compact" activeContext={selectedTable} />
             </aside>
         </div>
     );

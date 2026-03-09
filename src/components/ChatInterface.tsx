@@ -14,13 +14,28 @@ type Message = {
 
 interface ChatInterfaceProps {
     className?: string;
+    activeContext?: string | null;
 }
 
-export function ChatInterface({ className = '' }: ChatInterfaceProps) {
+export function ChatInterface({ className = '', activeContext = null }: ChatInterfaceProps) {
     const [input, setInput] = useState('');
-    const [messages, setMessages] = useState<Message[]>([]);
+    const [messagesMap, setMessagesMap] = useState<Record<string, Message[]>>({});
     const [isGenerating, setIsGenerating] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    const currentContextKey = activeContext || 'global';
+    const messages = messagesMap[currentContextKey] || [];
+
+    const setMessages = (updater: Message[] | ((prev: Message[]) => Message[])) => {
+        setMessagesMap(prevMap => {
+            const prevMessages = prevMap[currentContextKey] || [];
+            const nextMessages = typeof updater === 'function' ? updater(prevMessages) : updater;
+            return {
+                ...prevMap,
+                [currentContextKey]: nextMessages
+            };
+        });
+    };
 
     const suggestions = [
         'Show top 10 rows',
@@ -48,7 +63,7 @@ export function ChatInterface({ className = '' }: ChatInterfaceProps) {
 
         try {
             // Orchestrated Query (SQL, Semantic, or Chat)
-            const result = await aiService.query(text);
+            const result = await aiService.query(text, activeContext);
 
             if (result.type === 'sql') {
                 const sql = result.sql;
@@ -65,6 +80,18 @@ export function ChatInterface({ className = '' }: ChatInterfaceProps) {
                 try {
                     const data = await runQuery(sql);
                     setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, data } : m));
+
+                    // Generate AI Insight
+                    if (data && data.rows && data.rows.length > 0) {
+                        try {
+                            const sample = data.rows.slice(0, 5);
+                            const prompt = `The user asked: "${text}". I executed a SQL query and got these results (first 5 rows max): ${JSON.stringify(sample)}. Please provide a very brief, friendly 1-2 sentence summary or insight about this data to help the user understand it. Do not mention that you used SQL or a query, just talk about the data directly.`;
+                            const insightText = await aiService.chat(prompt);
+                            setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, text: insightText } : m));
+                        } catch (insightErr) {
+                            console.error('Insight generation failed:', insightErr);
+                        }
+                    }
                 } catch (e: any) {
                     setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, error: `SQL Error: ${e.message}` } : m));
                 }
