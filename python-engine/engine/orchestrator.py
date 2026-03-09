@@ -32,7 +32,7 @@ Classify as one of: SQL, SEMANTIC, CHAT. Return ONLY the single word.
         intent = await self._classify_intent(request)
         
         if intent == "SQL":
-            sql = await self.sql_chain.generate_sql(request)
+            sql = await self.sql_chain.generate_sql(request, active_document)
             return {
                 "type": "sql",
                 "sql": sql,

@@ -11,8 +11,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getVersion: () => ipcRenderer.invoke('app:getVersion'),
 
     // File operations
+    // File operations
     openFileDialog: () => ipcRenderer.invoke('file:openDialog'),
     readFile: (filePath: string) => ipcRenderer.invoke('file:read', filePath),
+
+    // Backend config
+    getApiPort: () => ipcRenderer.invoke('app:getApiPort'),
 
     // Platform detection
     platform: process.platform,

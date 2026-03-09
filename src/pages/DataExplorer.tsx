@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
     Database,
     Upload,
@@ -225,6 +225,38 @@ export function DataExplorer() {
 
     const selectedTableData = tables.find((t) => t.name === selectedTable);
 
+    const memoizedTable = useMemo(() => {
+        if (!preview) return null;
+        return (
+            <table className="data-grid">
+                <thead>
+                    <tr>
+                        <th className="row-num-header">#</th>
+                        {preview.columns.map((col) => (
+                            <th key={col}>{col}</th>
+                        ))}
+                    </tr>
+                </thead>
+                <tbody>
+                    {preview.rows.map((row, i) => (
+                        <tr key={i}>
+                            <td className="row-num">{i + 1}</td>
+                            {preview.columns.map((col) => (
+                                <td key={col}>
+                                    {row[col] === null ? (
+                                        <span className="null-value">NULL</span>
+                                    ) : (
+                                        String(row[col])
+                                    )}
+                                </td>
+                            ))}
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        );
+    }, [preview]);
+
     // Show loading state while DuckDB initializes
     if (loadingState === 'initializing') {
         return (
@@ -378,34 +410,7 @@ export function DataExplorer() {
                                                 <Loader2 className="spin" />
                                                 <span>Loading preview...</span>
                                             </div>
-                                        ) : preview ? (
-                                            <table className="data-grid">
-                                                <thead>
-                                                    <tr>
-                                                        <th className="row-num-header">#</th>
-                                                        {preview.columns.map((col) => (
-                                                            <th key={col}>{col}</th>
-                                                        ))}
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {preview.rows.map((row, i) => (
-                                                        <tr key={i}>
-                                                            <td className="row-num">{i + 1}</td>
-                                                            {preview.columns.map((col) => (
-                                                                <td key={col}>
-                                                                    {row[col] === null ? (
-                                                                        <span className="null-value">NULL</span>
-                                                                    ) : (
-                                                                        String(row[col])
-                                                                    )}
-                                                                </td>
-                                                            ))}
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        ) : null}
+                                        ) : preview ? memoizedTable : null}
                                     </div>
                                 </section>
                             </>

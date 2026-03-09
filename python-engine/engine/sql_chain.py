@@ -1,5 +1,5 @@
 import re
-from typing import List
+from typing import List, Optional
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
@@ -40,10 +40,13 @@ SQL Query:"""
         
         self.prompt = ChatPromptTemplate.from_template(self.template)
 
-    async def generate_sql(self, question: str) -> str:
+    async def generate_sql(self, question: str, active_document: Optional[str] = None) -> str:
         # 1. Retrieve relevant schemas
         query_embedding = await self.ollama.get_embedding(question)
-        results = self.vector_store.search_sql_schemas(query_embedding, n_results=5)
+        if active_document:
+            results = self.vector_store.search_sql_schemas(query_embedding, n_results=5, table_filter=active_document)
+        else:
+            results = self.vector_store.search_sql_schemas(query_embedding, n_results=5)
         
         schemas = []
         if results and results.get("documents") and results["documents"][0]:

@@ -5,7 +5,9 @@
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build && electron-builder",
+    "build": "tsc && vite build",
+    "build:mac": "npm run build && electron-builder --mac",
+    "build:win": "npm run build && electron-builder --win",
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
   },
@@ -43,6 +45,20 @@
     },
     "linux": {
       "target": "AppImage"
-    }
+    },
+    "files": [
+      "dist",
+      "dist-electron"
+    ],
+    "extraResources": [
+      {
+        "from": "python-engine",
+        "to": "python-engine",
+        "filter": [
+          "**/*",
+          "!__pycache__"
+        ]
+      }
+    ]
   }
 }
