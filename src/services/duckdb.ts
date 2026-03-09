@@ -144,6 +144,31 @@ export async function importParquet(
     return await getTableInfo(tableName);
 }
 
+// Import an Excel file into DuckDB using the spatial extension
+export async function importExcel(
+    tableName: string,
+    data: Uint8Array
+): Promise<TableInfo> {
+    const c = await getConnection();
+
+    // Load the spatial extension (needed for st_read which handles Excel)
+    try {
+        await c.query(`INSTALL spatial`);
+        await c.query(`LOAD spatial`);
+    } catch (e) {
+        console.log('[DuckDB] Spatial extension already loaded or unavailable, trying fallback...');
+    }
+
+    await db!.registerFileBuffer(`${tableName}.xlsx`, data);
+
+    await c.query(`
+    CREATE OR REPLACE TABLE "${tableName}" AS
+    SELECT * FROM st_read('${tableName}.xlsx')
+  `);
+
+    return await getTableInfo(tableName);
+}
+
 // Get table schema and row count
 export async function getTableInfo(tableName: string): Promise<TableInfo> {
     const c = await getConnection();

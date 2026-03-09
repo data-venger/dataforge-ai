@@ -6,7 +6,6 @@ interface TopBarProps {
 }
 
 const pageNames: Record<Page, string> = {
-    'chat': 'Chat',
     'data-explorer': 'Data Explorer',
     'viz-canvas': 'Visualizations',
     'settings': 'Settings',

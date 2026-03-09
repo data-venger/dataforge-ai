@@ -26,7 +26,9 @@ Below are the schemas of the available tables in the user's database:
 5. If the user asks for "highest", use ORDER BY __ DESC LIMIT 1.
 6. If the user asks to see the columns, schema, or descriptions of a table, use the DESCRIBE command.
    Example: DESCRIBE "part_00000_table";
-7. Do NOT wrap the final output in ```sql ``` codeblocks. Just the raw SQL string.
+7. If the user asks what a specific column means or indicates, generate a query to SELECT DISTINCT values from that column so they can see the data.
+   Example: SELECT DISTINCT "agency" FROM "part_00000_table" LIMIT 10;
+8. Do NOT wrap the final output in ```sql ``` codeblocks. Just the raw SQL string.
 
 User Question: {question}
 

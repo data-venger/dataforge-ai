@@ -30,18 +30,26 @@ class VectorStore:
             metadatas=[{"table": table_name}]
         )
 
-    def search_documents(self, query_embedding: List[float], n_results: int = 5):
-        results = self.doc_collection.query(
+    def search_documents(self, query_embedding: List[float], n_results: int = 5, source_filter: str = None) -> Dict[str, Any]:
+        where = None
+        if source_filter:
+            where = {"source": source_filter}
+            
+        return self.doc_collection.query(
             query_embeddings=[query_embedding],
-            n_results=n_results
+            n_results=n_results,
+            where=where
         )
-        return results
 
-    def search_sql_schemas(self, query_embedding: List[float], n_results: int = 5):
+    def search_sql_schemas(self, query_embedding: List[float], n_results: int = 5, table_filter: str = None):
+        where = None
+        if table_filter:
+            where = {"table": table_filter}
         try:
             results = self.sql_collection.query(
                 query_embeddings=[query_embedding],
-                n_results=n_results
+                n_results=n_results,
+                where=where
             )
             return results
         except Exception:

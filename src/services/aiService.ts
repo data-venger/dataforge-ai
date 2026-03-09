@@ -99,16 +99,53 @@ class AIService {
         return data.sql;
     }
 
-    async query(prompt: string): Promise<any> {
+    async query(prompt: string, activeDocument?: string | null): Promise<any> {
+        const payload: any = { prompt };
+
+        // If the UI passes a document name that includes the emoji prefix, remove it.
+        if (activeDocument) {
+            payload.active_document = activeDocument.replace(/^📄\s*/, '');
+        }
+
         const res = await fetch(`${API_BASE_URL}/query`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt }),
+            body: JSON.stringify(payload),
         });
 
         if (!res.ok) {
             const err = await res.json();
             throw new Error(err.detail || 'Query request failed');
+        }
+        return await res.json();
+    }
+
+    async indexDocument(source: string, content: string): Promise<any> {
+        const res = await fetch(`${API_BASE_URL}/index/document`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ source, content }),
+        });
+
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.detail || 'Failed to index document');
+        }
+        return await res.json();
+    }
+
+    async processFile(file: File): Promise<any> {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const res = await fetch(`${API_BASE_URL}/process/file`, {
+            method: 'POST',
+            body: formData,
+        });
+
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.detail || 'Failed to process file');
         }
         return await res.json();
     }
