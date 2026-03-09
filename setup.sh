@@ -15,8 +15,14 @@ echo -e "${BLUE}=======================================${NC}"
 echo -e "${BLUE}       Starting DataForge.ai ⚡️        ${NC}"
 echo -e "${BLUE}=======================================${NC}"
 
-# 1. Check if Ollama is running
-echo -e "\n${GREEN}[1/3] Checking Ollama status...${NC}"
+# 1. Cleanup existing processes
+echo -e "\n${GREEN}[1/4] Cleaning up existing processes...${NC}"
+pkill -f "uvicorn main:app" || true
+pkill -f "vite" || true
+echo "Cleanup complete."
+
+# 2. Check if Ollama is running
+echo -e "\n${GREEN}[2/4] Checking Ollama status...${NC}"
 if ! curl -s http://localhost:11434/api/tags > /dev/null; then
     echo -e "${RED}Error: Ollama is not running.${NC}"
     echo "Please start the Ollama application before running DataForge."
