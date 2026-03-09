@@ -45,8 +45,25 @@ npm install
 npm run dev
 ```
 
+### 3. Packaging for Production (Windows / Mac)
+
+DataForge AI uses `electron-builder` to package the application and the Python inference engine into a single executable.
+
+```bash
+# To build a `.dmg` installer for Mac
+npm run build:mac
+
+# To build a `.exe` installer for Windows
+npm run build:win
+```
+
+The compiled binaries will be available in the `release/` directory.
+
 ## Features Complete Unlocked
 
 - **Phase 1:** Electron app shell, frameless window, React navigation routing.
 - **Phase 2:** DuckDB integration, File Import Pipeline (CSV/Parquet), Data Explorer UI.
 - **Phase 3:** Python sidecar (FastAPI), Ollama LLM connection, ChromaDB vector indexing.
+- **Phase 4:** Hybrid RAG pipeline (SQL generation + vector contextual search), Chat Sidebar UI.
+- **Phase 5:** Self-correcting SQL auto-loop, strict table hallucination constraints.
+- **Phase 6:** Global UI Error Boundaries, React `useMemo` rendering optimizations, and dynamic port finding for cross-platform `.dmg`/`.exe` bundling.

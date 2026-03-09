@@ -1,17 +1,6 @@
-import { useState, useEffect } from 'react';
-import { aiService, type SystemHealth } from '../services/aiService';
+import { type SystemHealth } from '../services/aiService';
 
-export function StatusBar() {
-    const [health, setHealth] = useState<SystemHealth | null>(null);
-
-    useEffect(() => {
-        aiService.getHealth().then(setHealth);
-        const interval = setInterval(async () => {
-            const h = await aiService.getHealth();
-            setHealth(h);
-        }, 5000);
-        return () => clearInterval(interval);
-    }, []);
+export function StatusBar({ health }: { health: SystemHealth | null }) {
 
     const pythonConnected = health?.status === 'ok';
     const ollamaConnected = health?.ollama_connected;

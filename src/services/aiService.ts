@@ -9,29 +9,56 @@ export interface SystemHealth {
     };
 }
 
-const API_BASE_URL = 'http://127.0.0.1:8000';
+let API_BASE_URL = 'http://127.0.0.1:8000';
 
 class AIService {
-    async getHealth(): Promise<SystemHealth> {
+    private initialized = false;
+
+    private async ensureInitialized() {
+        if (this.initialized) return;
         try {
-            const res = await fetch(`${API_BASE_URL}/health`);
-            if (!res.ok) throw new Error('Failed to fetch health');
-            return await res.json();
+            if (window.electronAPI && window.electronAPI.getApiPort) {
+                const port = await window.electronAPI.getApiPort();
+                API_BASE_URL = `http://127.0.0.1:${port}`;
+            }
         } catch (e) {
-            return {
-                status: 'error',
-                ollama_connected: false,
-                active_model: 'unknown',
-                vector_store_stats: {
-                    documents_count: 0,
-                    sql_schemas_count: 0,
-                    storage_path: '',
-                },
-            };
+            console.error("Failed to fetch dynamic API port", e);
         }
+        this.initialized = true;
+    }
+
+    async getHealth(retries = 3): Promise<SystemHealth> {
+        await this.ensureInitialized();
+        for (let i = 0; i < retries; i++) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 2000);
+            try {
+                const res = await fetch(`${API_BASE_URL}/health`, { signal: controller.signal });
+                clearTimeout(timeoutId);
+                if (!res.ok) throw new Error('Failed to fetch health');
+                return await res.json();
+            } catch (e) {
+                clearTimeout(timeoutId);
+                if (i === retries - 1) {
+                    return {
+                        status: 'error',
+                        ollama_connected: false,
+                        active_model: 'unknown',
+                        vector_store_stats: {
+                            documents_count: 0,
+                            sql_schemas_count: 0,
+                            storage_path: '',
+                        },
+                    };
+                }
+                await new Promise(r => setTimeout(r, 1500));
+            }
+        }
+        throw new Error("Unreachable");
     }
 
     async getModels(): Promise<string[]> {
+        await this.ensureInitialized();
         try {
             const res = await fetch(`${API_BASE_URL}/models`);
             if (!res.ok) return [];
@@ -43,6 +70,7 @@ class AIService {
     }
 
     async chat(prompt: string, system?: string, model?: string): Promise<string> {
+        await this.ensureInitialized();
         const res = await fetch(`${API_BASE_URL}/chat`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -58,6 +86,7 @@ class AIService {
     }
 
     async embed(text: string, model?: string): Promise<number[]> {
+        await this.ensureInitialized();
         const res = await fetch(`${API_BASE_URL}/embed`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -73,6 +102,7 @@ class AIService {
     }
 
     async indexSchema(tableName: string, schemaText: string): Promise<boolean> {
+        await this.ensureInitialized();
         const res = await fetch(`${API_BASE_URL}/index/schema`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -83,6 +113,7 @@ class AIService {
     }
 
     async generateSql(question: string): Promise<string> {
+        await this.ensureInitialized();
         // Legacy wrapper: calling the dedicated SQL route
         const res = await fetch(`${API_BASE_URL}/query/sql`, {
             method: 'POST',
@@ -100,6 +131,7 @@ class AIService {
     }
 
     async query(prompt: string, activeDocument?: string | null): Promise<any> {
+        await this.ensureInitialized();
         const payload: any = { prompt };
 
         // If the UI passes a document name that includes the emoji prefix, remove it.

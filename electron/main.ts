@@ -106,22 +106,57 @@ ipcMain.handle('file:read', async (_event, filePath: string) => {
 });
 
 import { spawn, type ChildProcess } from 'child_process';
+import { createServer } from 'net';
 
 let pythonProcess: ChildProcess | null = null;
+let apiPort: number = 8000;
 
-function startPythonEngine() {
+ipcMain.handle('app:getApiPort', () => apiPort);
+
+async function getAvailablePort(): Promise<number> {
+    return new Promise((resolve, reject) => {
+        const server = createServer();
+        server.on('error', (err) => {
+            reject(err);
+        });
+        // Listen on port 0 to let the OS assign a random free port
+        server.listen(0, '127.0.0.1', () => {
+            const address = server.address();
+            if (address && typeof address === 'object') {
+                const port = address.port;
+                server.close(() => resolve(port));
+            } else {
+                server.close(() => reject(new Error('Failed to get port from OS')));
+            }
+        });
+    });
+}
+
+async function startPythonEngine() {
+    apiPort = await getAvailablePort(8000);
     const isWin = process.platform === 'win32';
+    const isPackaged = app.isPackaged;
+
+    const engineDir = isPackaged
+        ? path.join(process.resourcesPath, 'python-engine')
+        : path.join(__dirname, '../python-engine');
+
     const venvBin = isWin ? 'Scripts' : 'bin';
-    const pythonExecutable = path.join(__dirname, '../python-engine/venv', venvBin, isWin ? 'python.exe' : 'python');
-    const uvicornScript = path.join(__dirname, '../python-engine/venv', venvBin, isWin ? 'uvicorn.exe' : 'uvicorn');
+    const pythonExec = isWin ? 'python.exe' : 'python3';
 
-    // In dev, the app is running from the project root.
-    const engineDir = path.join(__dirname, '../python-engine');
+    // Check if bundled venv exists, otherwise fallback to global python
+    const bundledPython = path.join(engineDir, 'venv', venvBin, pythonExec);
+    const useBundled = fs.existsSync(bundledPython);
 
-    console.log('[Electron] Starting Python Engine...');
+    const command = useBundled ? bundledPython : (isWin ? 'python' : 'python3');
+    const args = ['-m', 'uvicorn', 'main:app', '--host', '127.0.0.1', '--port', apiPort.toString()];
+
+    console.log(`[Electron] Starting Python Engine on port ${apiPort}...`);
+    console.log(`[Electron] Command: ${command} ${args.join(' ')}`);
+    console.log(`[Electron] CWD: ${engineDir}`);
 
     try {
-        pythonProcess = spawn(uvicornScript, ['main:app', '--host', '127.0.0.1', '--port', '8000'], {
+        pythonProcess = spawn(command, args, {
             cwd: engineDir,
             stdio: 'inherit'
         });

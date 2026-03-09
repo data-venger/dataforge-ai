@@ -20,6 +20,7 @@ interface ElectronAPI {
     getVersion: () => Promise<string>;
     openFileDialog: () => Promise<FileInfo[] | null>;
     readFile: (filePath: string) => Promise<FileReadResult>;
+    getApiPort: () => Promise<number>;
     platform: string;
 }
 
